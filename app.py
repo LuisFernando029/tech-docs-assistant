@@ -1,10 +1,14 @@
+import os
 import streamlit as st
+from dotenv import load_dotenv
+
+load_dotenv()  # Carrega GROQ_API_KEY do .env
 
 #  PAGE CONFIG
 st.set_page_config(
     page_title="Tech Docs Assistant",
     page_icon="public/logo.png",
-    layout="centered", # Layout centralizado e focado, estilo ChatGPT/Search
+    layout="centered",
     initial_sidebar_state="collapsed",
 )
 
@@ -15,31 +19,26 @@ st.markdown("""
 
 /* ── Root tokens baseados na Logo ───────────────────────────── */
 :root {
-    --bg:         #06090e;      /* Preto profundo do fundo da logo */
-    --surface:    #121824;      /* Azul escuro sutil para os cards */
-    --surface2:   #1b2436;      /* Variação para inputs e hover */
-    --border:     #1f2e4d;      /* Borda azulada discreta */
-    --accent:     #00d2ff;      /* Azul Neon brilhante (Olhos/Luz do Robô) */
-    --accent-grad: linear-gradient(135deg, #00d2ff 0%, #7928ca 100%); /* Gradiente do arco */
+    --bg:         #06090e;
+    --surface:    #121824;
+    --surface2:   #1b2436;
+    --border:     #1f2e4d;
+    --accent:     #00d2ff;
+    --accent-grad: linear-gradient(135deg, #00d2ff 0%, #7928ca 100%);
     --text:       #e6edf3;
     --muted:      #6e7681;
     --font-mono:  'JetBrains Mono', monospace;
     --font-ui:    'Inter', sans-serif;
 }
 
-/* ── Global reset ──────────────────────────── */
 html, body, [data-testid="stAppViewContainer"] {
     background-color: var(--bg) !important;
     color: var(--text) !important;
     font-family: var(--font-ui) !important;
 }
 
-/* Esconder completamente elementos desnecessários da sidebar */
-[data-testid="stSidebar"] {
-    display: none;
-}
+[data-testid="stSidebar"] { display: none; }
 
-/* ── Header Principal (Inspirado na Logo) ────────────────────── */
 .app-header {
     display: flex;
     flex-direction: column;
@@ -60,7 +59,6 @@ html, body, [data-testid="stAppViewContainer"] {
     align-items: center;
 }
 
-/* Recriação do arco luminoso da logo em CSS */
 .logo-wrapper::before {
     content: '';
     position: absolute;
@@ -99,7 +97,6 @@ html, body, [data-testid="stAppViewContainer"] {
     margin-top: 0.5rem;
 }
 
-/* ── Tags de Fontes de Dados ───────────────────────────────── */
 .source-pills {
     display: flex;
     justify-content: center;
@@ -126,7 +123,6 @@ html, body, [data-testid="stAppViewContainer"] {
     box-shadow: 0 0 8px var(--accent);
 }
 
-/* ── Container de Inputs e Botões ──────────────────────────── */
 [data-testid="stTextInput"] > div > div > input {
     background-color: var(--surface) !important;
     border: 1px solid var(--border) !important;
@@ -141,11 +137,8 @@ html, body, [data-testid="stAppViewContainer"] {
     border-color: var(--accent) !important;
     box-shadow: 0 0 0 3px rgba(0, 210, 255, 0.2), 0 4px 20px rgba(0,0,0,0.3) !important;
 }
-[data-testid="stTextInput"] label {
-    display: none; /* Remove label padrão do streamlit para visual mais limpo */
-}
+[data-testid="stTextInput"] label { display: none; }
 
-/* Botão de Busca Estilo RAG Moderno */
 [data-testid="stButton"] > button[kind="primary"] {
     background: linear-gradient(135deg, #00b4d8 0%, #0077b6 100%) !important;
     border: none !important;
@@ -163,7 +156,6 @@ html, body, [data-testid="stAppViewContainer"] {
     box-shadow: 0 6px 20px rgba(0, 180, 216, 0.5) !important;
 }
 
-/* Botão Secundário (Limpar) */
 [data-testid="stButton"] > button[kind="secondary"] {
     background: transparent !important;
     border: 1px solid var(--border) !important;
@@ -176,7 +168,6 @@ html, body, [data-testid="stAppViewContainer"] {
     color: var(--text) !important;
 }
 
-/* ── Bloco Uniforme de Resposta ────────────────────────────── */
 .response-block {
     background: var(--surface);
     border: 1px solid var(--border);
@@ -201,7 +192,6 @@ html, body, [data-testid="stAppViewContainer"] {
     font-size: 10px;
 }
 
-/* ── Fontes Consultadas ───────────────────────────────────── */
 .source-container {
     margin-top: 1.5rem;
     padding-top: 1.5rem;
@@ -221,7 +211,6 @@ html, body, [data-testid="stAppViewContainer"] {
 }
 .source-item a:hover { text-decoration: underline; }
 
-/* ── Sugestões/Exemplos abaixo do input ────────────────────── */
 .suggestions-title {
     font-size: 12px;
     color: var(--muted);
@@ -242,7 +231,6 @@ div.stButton > button.suggestion-btn:hover {
     background: var(--surface2) !important;
 }
 
-/* Código customizado */
 code {
     background: #06090e !important;
     color: #ff79c6 !important;
@@ -251,7 +239,7 @@ code {
 """, unsafe_allow_html=True)
 
 
-#  MAIN HEADER (Centralizado, baseado na Logo)
+# ── HEADER ──────────────────────────────────────────────────────────────────
 st.markdown("""
 <div class='app-header'>
     <div class='logo-wrapper'>
@@ -262,7 +250,6 @@ st.markdown("""
 </div>
 """, unsafe_allow_html=True)
 
-# Fontes ativas centralizadas
 st.markdown("""
 <div class='source-pills'>
     <span class='pill pill-active'>🐍 Python Docs</span>
@@ -271,7 +258,46 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 
-#  QUERY INPUT
+# ── CHAIN (carrega uma única vez via cache) ──────────────────────────────────
+@st.cache_resource(show_spinner="Carregando base de conhecimento...")
+def get_chain():
+    from rag.chain import build_chain
+    return build_chain()
+
+chain = get_chain()
+
+# Verifica se a API key está presente antes de carregar a chain
+if not os.getenv("GROQ_API_KEY"):
+    st.error("⚠️ GROQ_API_KEY não encontrada. Crie um arquivo `.env` com sua chave.")
+    st.stop()
+
+chain = get_chain()
+
+
+# ── PIPELINE RAG REAL ────────────────────────────────────────────────────────
+def run_rag(query: str) -> dict:
+    result = chain.invoke(query)
+
+    answer = result.get("answer", "Sem resposta.")
+    source_docs = result.get("source_documents", [])
+
+    snippet = ""
+    if "```" in answer:
+        parts = answer.split("```")
+        code_blocks = [p for i, p in enumerate(parts) if i % 2 == 1]
+        snippet = "\n\n".join(
+            b.split("\n", 1)[1] if "\n" in b else b for b in code_blocks
+        )
+        answer = parts[0].strip()
+
+    return {
+        "result": answer,
+        "snippet": snippet,
+        "source_documents": source_docs,
+    }
+
+
+# ── INPUT ────────────────────────────────────────────────────────────────────
 prefill = st.session_state.pop("prefill", "")
 pergunta = st.text_input(
     "Label invisível via CSS",
@@ -280,20 +306,19 @@ pergunta = st.text_input(
     key="query_input",
 )
 
-# Botões de Ação alinhados de forma moderna
 col_btn, col_clear, _ = st.columns([1.5, 1.2, 5])
 with col_btn:
     buscar = st.button("⚡ Buscar Resposta", type="primary", use_container_width=True)
 with col_clear:
     if st.button("✕ Limpar", type="secondary", use_container_width=True):
         st.session_state.last_result = None
+        st.session_state.chat_history = []
         st.rerun()
 
 
-#  SUGESTÕES RÁPIDAS (Substitui os botões feios que ficavam na sidebar)
+# ── SUGESTÕES ────────────────────────────────────────────────────────────────
 st.markdown("<div class='suggestions-title'>Sugestões de busca:</div>", unsafe_allow_html=True)
 
-# Grid de botões de sugestão elegantes
 sugestoes = [
     "Como usar a função map() em Python?",
     "Como fazer insert no MongoDB?",
@@ -318,50 +343,29 @@ with col_sug2:
         st.rerun()
 
 
-#  MOCK RAG PIPELINE
-def run_rag(query: str) -> dict:
-    return {
-        "result": (
-            "A função `enumerate()` retorna um objeto enumerado que produz tuplas "
-            "contendo um índice e o valor do iterável correspondente.\n\n"
-            "É especialmente útil quando você precisa do índice e do valor ao "
-            "mesmo tempo dentro de um `for` loop."
-        ),
-        "snippet": (
-            "fruits = ['apple', 'banana', 'cherry']\n\n"
-            "for index, fruit in enumerate(fruits):\n"
-            "    print(f'{index}: {fruit}')"
-        ),
-        "source_documents": [
-            type("Doc", (), {
-                "page_content": "enumerate(iterable, start=0) — Returns an enumerate object...",
-                "metadata": {"source": "https://docs.python.org/3/library/functions.html#enumerate", "base": "Python Docs"},
-            })(),
-        ],
-    }
-
-
-#  EXECUTE QUERY
+# ── EXECUÇÃO DA QUERY ────────────────────────────────────────────────────────
 if buscar and pergunta.strip():
-    with st.spinner("Varrendo bases de conhecimento..."):
-        result = run_rag(pergunta.strip())
-    st.session_state.last_result = {"query": pergunta.strip(), **result}
+    with st.spinner("🔍 Varrendo bases de conhecimento..."):
+        try:
+            result = run_rag(pergunta.strip())
+            st.session_state.last_result = {"query": pergunta.strip(), **result}
+        except Exception as e:
+            st.error(f"Erro ao processar a pergunta: {e}")
 
 
-#  DISPLAY RESULT (Interface limpa em Bloco Único)
+# ── EXIBIÇÃO DO RESULTADO ────────────────────────────────────────────────────
 if st.session_state.get("last_result"):
     res = st.session_state.last_result
     answer = res.get("result", "")
     snippet = res.get("snippet", "")
     sources = res.get("source_documents", [])
 
-    # Bloco único unificado contendo o output estruturado da IA
     st.markdown("""
     <div class='response-block'>
         <div class='block-title'>Resposta do Assistente</div>
     </div>
     """, unsafe_allow_html=True)
-    
+
     st.markdown(answer)
 
     if snippet:
@@ -370,9 +374,21 @@ if st.session_state.get("last_result"):
 
     if sources:
         st.markdown("<div class='source-container'><div style='font-size:12px; color:#6e7681; font-family:JetBrains Mono; margin-bottom:8px;'>FONTES CONSULTADAS:</div></div>", unsafe_allow_html=True)
+        
+        # Deduplica as fontes por URL
+        seen = set()
         for doc in sources:
             url = doc.metadata.get("source", "#")
-            base = doc.metadata.get("base", "")
+            if url in seen:
+                continue
+            seen.add(url)
+            # Identifica a base pela URL
+            if "python.org" in url:
+                base = "Python Docs"
+            elif "mongodb.com" in url:
+                base = "MongoDB Docs"
+            else:
+                base = doc.metadata.get("base", "Documentação")
             st.markdown(f"""
             <div class='source-item'>
                 🔹 <strong>{base}</strong> — <a href='{url}' target='_blank'>{url}</a>
