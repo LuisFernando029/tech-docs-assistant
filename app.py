@@ -1,264 +1,499 @@
 import os
 import streamlit as st
 from dotenv import load_dotenv
+from langchain_core.messages import HumanMessage, AIMessage
 
-load_dotenv()  # Carrega GROQ_API_KEY do .env
+load_dotenv()
 
-#  PAGE CONFIG
 st.set_page_config(
     page_title="Tech Docs Assistant",
-    page_icon="public/logo.png",
+    page_icon="🤖",
     layout="centered",
     initial_sidebar_state="collapsed",
 )
 
-#  CUSTOM CSS (Baseado nas cores e estética da sua Logo)
 st.markdown("""
 <style>
-@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&family=Inter:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500&family=Syne:wght@600;700&family=JetBrains+Mono:wght@400;500&display=swap');
 
-/* ── Root tokens baseados na Logo ───────────────────────────── */
 :root {
-    --bg:         #06090e;
-    --surface:    #121824;
-    --surface2:   #1b2436;
-    --border:     #1f2e4d;
-    --accent:     #00d2ff;
-    --accent-grad: linear-gradient(135deg, #00d2ff 0%, #7928ca 100%);
-    --text:       #e6edf3;
-    --muted:      #6e7681;
-    --font-mono:  'JetBrains Mono', monospace;
-    --font-ui:    'Inter', sans-serif;
+    --bg:           #0f1117;
+    --bg2:          #161b27;
+    --surface:      #1e2336;
+    --surface2:     #252b3b;
+    --border:       rgba(255,255,255,0.08);
+    --border-focus: rgba(138,180,248,0.45);
+    --accent:       #8ab4f8;
+    --accent2:      #c58af9;
+    --accent3:      #78d0b3;
+    --text:         #e8eaed;
+    --text2:        #9aa0ac;
+    --text3:        #4e545c;
+    --font:         'DM Sans', sans-serif;
+    --font-h:       'Syne', sans-serif;
+    --font-mono:    'JetBrains Mono', monospace;
 }
 
-html, body, [data-testid="stAppViewContainer"] {
-    background-color: var(--bg) !important;
+*, *::before, *::after { box-sizing: border-box; }
+
+html, body,
+[data-testid="stAppViewContainer"],
+[data-testid="stMain"] {
+    background: var(--bg) !important;
     color: var(--text) !important;
-    font-family: var(--font-ui) !important;
+    font-family: var(--font) !important;
 }
 
-[data-testid="stSidebar"] { display: none; }
+.main .block-container {
+    max-width: 700px !important;
+    margin: 0 auto !important;
+    padding: 0 1.25rem 160px !important;
+}
 
-.app-header {
+[data-testid="stSidebar"],
+[data-testid="stToolbar"],
+[data-testid="stDecoration"],
+[data-testid="stStatusWidget"],
+#MainMenu,
+footer,
+header {
+    display: none !important;
+}
+
+/* Hero */
+.hero {
+    text-align: center;
+    padding: 2.5rem 0 1.2rem;
+}
+
+.gem-star {
+    font-size: 2rem;
+    display: block;
+    margin-bottom: 0.8rem;
+    background: linear-gradient(135deg, #8ab4f8, #c58af9, #78d0b3);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+.hero h1 {
+    font-family: var(--font-h);
+    font-size: 2rem;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    line-height: 1.2;
+    margin: 0 0 0.4rem;
+
+    background: linear-gradient(
+        135deg,
+        #8ab4f8 0%,
+        #c58af9 55%,
+        #78d0b3 100%
+    );
+
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+.hero p {
+    color: var(--text2);
+    font-size: 0.9rem;
+    font-weight: 300;
+    margin: 0;
+}
+
+/* Badges */
+.badges {
+    display: flex;
+    justify-content: center;
+    gap: 8px;
+    margin: 0.9rem 0 2rem;
+    flex-wrap: wrap;
+}
+
+.badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+
+    font-size: 11px;
+    font-family: var(--font-mono);
+
+    padding: 4px 12px;
+    border-radius: 20px;
+
+    border: 1px solid var(--border);
+    background: var(--surface);
+    color: var(--text2);
+}
+
+.bdot {
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    background: var(--accent3);
+    box-shadow: 0 0 5px var(--accent3);
+    flex-shrink: 0;
+}
+
+/* Chips */
+.chips-label {
+    font-size: 10.5px;
+    font-family: var(--font-mono);
+    color: var(--text3);
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+    margin-bottom: 0.6rem;
+}
+
+div[data-testid="stHorizontalBlock"] [data-testid="stButton"] > button {
+    background: var(--surface) !important;
+    border: 1px solid var(--border) !important;
+    color: var(--text2) !important;
+
+    border-radius: 18px !important;
+    font-size: 12.5px !important;
+    font-family: var(--font) !important;
+    font-weight: 400 !important;
+
+    padding: 7px 14px !important;
+    width: 100% !important;
+
+    box-shadow: none !important;
+    text-align: left !important;
+    transform: none !important;
+
+    transition:
+        border-color 0.15s,
+        color 0.15s !important;
+}
+
+div[data-testid="stHorizontalBlock"] [data-testid="stButton"] > button:hover {
+    border-color: var(--accent) !important;
+    color: var(--accent) !important;
+    background: rgba(138,180,248,0.05) !important;
+}
+
+/* Chat */
+.turn {
+    margin-bottom: 1.2rem;
+}
+
+.user-row {
+    display: flex;
+    justify-content: flex-end;
+    margin-bottom: 0.85rem;
+}
+
+.user-bubble {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+
+    border-radius: 18px 18px 4px 18px;
+
+    padding: 10px 16px;
+    max-width: 75%;
+
+    font-size: 14px;
+    color: var(--text);
+    line-height: 1.55;
+
+    word-break: break-word;
+}
+
+.ai-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 0.5rem;
+}
+
+.ai-av {
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    flex-shrink: 0;
+
+    background: linear-gradient(135deg, #4285f4, #7c4dff);
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    font-size: 9px;
+    font-weight: 700;
+    color: #fff;
+
+    font-family: var(--font-mono);
+}
+
+.ai-label {
+    font-size: 11px;
+    font-family: var(--font-mono);
+    color: var(--text3);
+
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+}
+
+.ai-content {
+    padding-left: 36px;
+    animation: fadeUp 0.22s ease;
+}
+
+@keyframes fadeUp {
+    from {
+        opacity: 0;
+        transform: translateY(4px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Fontes */
+.src-wrap {
+    margin-top: 0.8rem;
+    padding-top: 0.8rem;
+    border-top: 1px solid var(--border);
+}
+
+.src-label {
+    font-size: 10px;
+    font-family: var(--font-mono);
+    color: var(--text3);
+
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+
+    margin-bottom: 0.4rem;
+}
+
+.src-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+
+    background: var(--surface);
+    border: 1px solid var(--border);
+
+    border-radius: 5px;
+    padding: 3px 9px;
+    margin: 0 4px 4px 0;
+
+    font-size: 11px;
+    font-family: var(--font-mono);
+    color: var(--text2);
+
+    text-decoration: none;
+
+    transition:
+        border-color 0.12s,
+        color 0.12s;
+}
+
+.src-chip:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+}
+
+.turn-divider {
+    border: none;
+    border-top: 1px solid var(--border);
+    margin: 1.2rem 0;
+}
+
+/* Loading */
+.loading-wrap {
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    text-align: center;
-    padding: 3rem 0 1.5rem;
-    position: relative;
+
+    padding: 4rem 0 2rem;
+    gap: 1.2rem;
 }
 
-.logo-wrapper {
-    position: relative;
-    width: 100px;
-    height: 100px;
-    margin-bottom: 1rem;
+.loading-dots {
     display: flex;
-    justify-content: center;
+    gap: 8px;
     align-items: center;
 }
 
-.logo-wrapper::before {
-    content: '';
-    position: absolute;
-    width: 120px;
-    height: 120px;
+.loading-dots span {
+    width: 9px;
+    height: 9px;
     border-radius: 50%;
-    border: 3px solid transparent;
-    background: linear-gradient(var(--bg), var(--bg)) padding-box,
-                linear-gradient(135deg, #00d2ff 0%, #9b51e0 100%) border-box;
-    mask: linear-gradient(#fff 0 0) padding-box, linear-gradient(#fff 0 0);
-    -webkit-mask: linear-gradient(#fff 0 0) padding-box, linear-gradient(#fff 0 0);
-    -webkit-mask-composite: destination-out;
-    mask-composite: exclude;
+    animation: bounce 1.3s infinite ease-in-out;
 }
 
-.app-header .logo-emoji {
-    font-size: 3rem;
-    z-index: 2;
-    filter: drop-shadow(0 0 10px rgba(0, 210, 255, 0.5));
+.loading-dots span:nth-child(1) {
+    background: #8ab4f8;
+    animation-delay: 0s;
 }
 
-.app-header h1 {
-    font-family: var(--font-ui);
-    font-size: 2.2rem;
-    font-weight: 700;
-    letter-spacing: -0.03em;
-    background: linear-gradient(120deg, #fff 40%, var(--accent));
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    margin: 0;
+.loading-dots span:nth-child(2) {
+    background: #c58af9;
+    animation-delay: 0.22s;
 }
 
-.app-header p {
-    color: var(--muted);
-    font-size: 1rem;
-    margin-top: 0.5rem;
+.loading-dots span:nth-child(3) {
+    background: #78d0b3;
+    animation-delay: 0.44s;
 }
 
-.source-pills {
-    display: flex;
-    justify-content: center;
-    gap: 10px;
-    margin-bottom: 2.5rem;
-}
-.pill {
-    font-size: 12px;
-    font-family: var(--font-mono);
-    padding: 6px 16px;
-    border-radius: 30px;
-    background: #121824;
-    border: 1px solid var(--border);
-    color: #fff;
-    display: flex;
-    align-items: center;
-    gap: 6px;
-}
-.pill-active::before {
-    content: '';
-    width: 6px; height: 6px;
-    border-radius: 50%;
-    background: var(--accent);
-    box-shadow: 0 0 8px var(--accent);
+@keyframes bounce {
+    0%, 80%, 100% {
+        transform: scale(0.55);
+        opacity: 0.35;
+    }
+
+    40% {
+        transform: scale(1.1);
+        opacity: 1;
+    }
 }
 
-[data-testid="stTextInput"] > div > div > input {
-    background-color: var(--surface) !important;
-    border: 1px solid var(--border) !important;
-    border-radius: 12px !important;
+.loading-text {
+    font-size: 13px;
+    color: var(--text2);
+    font-weight: 300;
+    letter-spacing: 0.02em;
+}
+
+/* INPUT AJUSTADO */
+[data-testid="stTextInput"] {
+    width: 100%;
+}
+
+[data-testid="stTextInput"] > div {
+    width: 100%;
+}
+
+[data-testid="stTextInput"] div[data-baseweb="input"] {
+    background: var(--surface) !important;
+    border: 1.5px solid var(--border) !important;
+    border-radius: 26px !important;
+
+    overflow: hidden !important;
+
+    min-height: 50px !important;
+
+    display: flex !important;
+    align-items: center !important;
+
+    padding: 0 6px !important;
+
+    transition:
+        border-color 0.2s,
+        box-shadow 0.2s !important;
+}
+
+[data-testid="stTextInput"] div[data-baseweb="input"]:focus-within {
+    border-color: var(--border-focus) !important;
+
+    box-shadow:
+        0 0 0 3px rgba(138,180,248,0.1) !important;
+
+    background: var(--surface2) !important;
+}
+
+[data-testid="stTextInput"] input {
+    background: transparent !important;
+    border: none !important;
+    outline: none !important;
+    box-shadow: none !important;
+
     color: var(--text) !important;
-    font-size: 16px !important;
-    padding: 16px 20px !important;
-    box-shadow: 0 4px 20px rgba(0,0,0,0.3) !important;
-    transition: all 0.3s ease;
+    font-family: var(--font) !important;
+    font-size: 14.5px !important;
+
+    padding: 0 14px !important;
+    height: 48px !important;
 }
-[data-testid="stTextInput"] > div > div > input:focus {
-    border-color: var(--accent) !important;
-    box-shadow: 0 0 0 3px rgba(0, 210, 255, 0.2), 0 4px 20px rgba(0,0,0,0.3) !important;
+
+[data-testid="stTextInput"] input::placeholder {
+    color: var(--text3) !important;
 }
-[data-testid="stTextInput"] label { display: none; }
+
+[data-testid="stTextInput"] label {
+    display: none !important;
+}
+
+/* Botões */
+[data-testid="stButton"] > button {
+    font-family: var(--font) !important;
+    font-weight: 500 !important;
+
+    border-radius: 22px !important;
+
+    transition: all 0.16s ease !important;
+}
 
 [data-testid="stButton"] > button[kind="primary"] {
-    background: linear-gradient(135deg, #00b4d8 0%, #0077b6 100%) !important;
+    background: linear-gradient(135deg, #4285f4, #7c4dff) !important;
     border: none !important;
-    border-radius: 10px !important;
     color: #fff !important;
-    font-family: var(--font-ui) !important;
-    font-size: 15px !important;
-    font-weight: 600 !important;
-    padding: 12px 28px !important;
-    box-shadow: 0 4px 14px rgba(0, 180, 216, 0.3) !important;
-    transition: all 0.2s ease;
+
+    font-size: 13.5px !important;
+    padding: 10px 20px !important;
+
+    box-shadow:
+        0 2px 10px rgba(66,133,244,0.3) !important;
 }
+
 [data-testid="stButton"] > button[kind="primary"]:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 6px 20px rgba(0, 180, 216, 0.5) !important;
+    transform: translateY(-1px) !important;
+
+    box-shadow:
+        0 4px 16px rgba(66,133,244,0.45) !important;
 }
 
 [data-testid="stButton"] > button[kind="secondary"] {
     background: transparent !important;
     border: 1px solid var(--border) !important;
-    border-radius: 10px !important;
-    color: var(--muted) !important;
-    padding: 12px 20px !important;
-}
-[data-testid="stButton"] > button[kind="secondary"]:hover {
-    border-color: var(--text) !important;
-    color: var(--text) !important;
-}
 
-.response-block {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 14px;
-    padding: 1.5rem;
-    margin-top: 2rem;
-    box-shadow: 0 10px 30px rgba(0,0,0,0.5);
-}
-.response-block .block-title {
-    font-family: var(--font-mono);
-    font-size: 12px;
-    text-transform: uppercase;
-    letter-spacing: 0.1em;
-    color: var(--accent);
-    margin-bottom: 1rem;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-}
-.response-block .block-title::before {
-    content: '●';
-    font-size: 10px;
-}
+    color: var(--text2) !important;
 
-.source-container {
-    margin-top: 1.5rem;
-    padding-top: 1.5rem;
-    border-top: 1px solid var(--border);
-}
-.source-item {
-    background: var(--surface2);
-    border-radius: 8px;
-    padding: 10px 14px;
-    margin-bottom: 8px;
-    font-size: 13px;
-}
-.source-item a {
-    color: var(--accent);
-    text-decoration: none;
-    font-family: var(--font-mono);
-}
-.source-item a:hover { text-decoration: underline; }
-
-.suggestions-title {
-    font-size: 12px;
-    color: var(--muted);
-    font-family: var(--font-mono);
-    margin: 1.5rem 0 0.5rem 2px;
-}
-div.stButton > button.suggestion-btn {
-    background: var(--surface) !important;
-    border: 1px solid var(--border) !important;
-    color: var(--text) !important;
-    border-radius: 20px !important;
-    padding: 6px 14px !important;
     font-size: 13px !important;
-    text-align: left !important;
-}
-div.stButton > button.suggestion-btn:hover {
-    border-color: var(--accent) !important;
-    background: var(--surface2) !important;
+    padding: 10px 16px !important;
 }
 
-code {
-    background: #06090e !important;
-    color: #ff79c6 !important;
+[data-testid="stButton"] > button[kind="secondary"]:hover {
+    border-color: rgba(255,255,255,0.18) !important;
+    color: var(--text) !important;
+}
+
+/* Code */
+[data-testid="stCode"] {
+    border-radius: 10px !important;
+    border: 1px solid var(--border) !important;
+    overflow: hidden !important;
+    margin-top: 0.6rem !important;
+}
+
+[data-testid="stCode"] pre {
+    background: #0b0f18 !important;
+    font-family: var(--font-mono) !important;
+    font-size: 12.5px !important;
+    line-height: 1.6 !important;
+}
+
+/* Esconde spinner padrão */
+[data-testid="stSpinner"] {
+    display: none !important;
 }
 </style>
 """, unsafe_allow_html=True)
 
+# ── CHAIN ─────────────────────────────────────────────────────────────────────
+if not os.getenv("GROQ_API_KEY"):
+    st.error("⚠️ GROQ_API_KEY não encontrada.")
+    st.stop()
 
-# ── HEADER ──────────────────────────────────────────────────────────────────
-st.markdown("""
-<div class='app-header'>
-    <div class='logo-wrapper'>
-        <div class='logo-emoji'>🤖</div>
-    </div>
-    <h1>Tech Docs Assistant</h1>
-    <p>Sua IA para consulta de documentações técnicas em tempo real</p>
-</div>
-""", unsafe_allow_html=True)
-
-st.markdown("""
-<div class='source-pills'>
-    <span class='pill pill-active'>🐍 Python Docs</span>
-    <span class='pill pill-active'>🍃 MongoDB Docs</span>
-</div>
-""", unsafe_allow_html=True)
-
-
-# ── CHAIN (carrega uma única vez via cache) ──────────────────────────────────
 @st.cache_resource(show_spinner="Carregando base de conhecimento...")
 def get_chain():
     from rag.chain import build_chain
@@ -266,131 +501,287 @@ def get_chain():
 
 chain = get_chain()
 
-# Verifica se a API key está presente antes de carregar a chain
-if not os.getenv("GROQ_API_KEY"):
-    st.error("⚠️ GROQ_API_KEY não encontrada. Crie um arquivo `.env` com sua chave.")
-    st.stop()
-
-chain = get_chain()
-
-
-# ── PIPELINE RAG REAL ────────────────────────────────────────────────────────
-def run_rag(query: str) -> dict:
-    result = chain.invoke(query)
+def run_rag(question: str, history: list) -> dict:
+    result = chain.invoke(question, chat_history=history)
 
     answer = result.get("answer", "Sem resposta.")
     source_docs = result.get("source_documents", [])
 
     snippet = ""
+
     if "```" in answer:
         parts = answer.split("```")
-        code_blocks = [p for i, p in enumerate(parts) if i % 2 == 1]
+
+        code_blocks = [
+            p for i, p in enumerate(parts)
+            if i % 2 == 1
+        ]
+
         snippet = "\n\n".join(
-            b.split("\n", 1)[1] if "\n" in b else b for b in code_blocks
+            b.split("\n", 1)[1] if "\n" in b else b
+            for b in code_blocks
         )
+
         answer = parts[0].strip()
 
     return {
-        "result": answer,
+        "answer": answer,
         "snippet": snippet,
         "source_documents": source_docs,
     }
 
+# ── SESSION STATE ─────────────────────────────────────────────────────────────
+if "chat_history" not in st.session_state:
+    st.session_state.chat_history = []
 
-# ── INPUT ────────────────────────────────────────────────────────────────────
-prefill = st.session_state.pop("prefill", "")
-pergunta = st.text_input(
-    "Label invisível via CSS",
-    value=prefill,
-    placeholder="Pergunte qualquer coisa... (Ex: Como usar o aggregation pipeline no MongoDB?)",
-    key="query_input",
-)
+if "chat_display" not in st.session_state:
+    st.session_state.chat_display = []
 
-col_btn, col_clear, _ = st.columns([1.5, 1.2, 5])
-with col_btn:
-    buscar = st.button("⚡ Buscar Resposta", type="primary", use_container_width=True)
-with col_clear:
-    if st.button("✕ Limpar", type="secondary", use_container_width=True):
-        st.session_state.last_result = None
-        st.session_state.chat_history = []
-        st.rerun()
+if "pending_q" not in st.session_state:
+    st.session_state.pending_q = None
 
+if "query_input" not in st.session_state:
+    st.session_state.query_input = ""
 
-# ── SUGESTÕES ────────────────────────────────────────────────────────────────
-st.markdown("<div class='suggestions-title'>Sugestões de busca:</div>", unsafe_allow_html=True)
+if "clear_input" not in st.session_state:
+    st.session_state.clear_input = False
 
-sugestoes = [
-    "Como usar a função map() em Python?",
-    "Como fazer insert no MongoDB?",
-    "O que é list comprehension?",
-    "Como usar o aggregation pipeline?"
-]
+# ── PROCESSA PERGUNTA ─────────────────────────────────────────────────────────
+if st.session_state.pending_q:
 
-col_sug1, col_sug2 = st.columns(2)
-with col_sug1:
-    if st.button(f"💡 {sugestoes[0]}", key="sug_1", use_container_width=True):
-        st.session_state["prefill"] = sugestoes[0]
-        st.rerun()
-    if st.button(f"💡 {sugestoes[1]}", key="sug_2", use_container_width=True):
-        st.session_state["prefill"] = sugestoes[1]
-        st.rerun()
-with col_sug2:
-    if st.button(f"💡 {sugestoes[2]}", key="sug_3", use_container_width=True):
-        st.session_state["prefill"] = sugestoes[2]
-        st.rerun()
-    if st.button(f"💡 {sugestoes[3]}", key="sug_4", use_container_width=True):
-        st.session_state["prefill"] = sugestoes[3]
-        st.rerun()
-
-
-# ── EXECUÇÃO DA QUERY ────────────────────────────────────────────────────────
-if buscar and pergunta.strip():
-    with st.spinner("🔍 Varrendo bases de conhecimento..."):
-        try:
-            result = run_rag(pergunta.strip())
-            st.session_state.last_result = {"query": pergunta.strip(), **result}
-        except Exception as e:
-            st.error(f"Erro ao processar a pergunta: {e}")
-
-
-# ── EXIBIÇÃO DO RESULTADO ────────────────────────────────────────────────────
-if st.session_state.get("last_result"):
-    res = st.session_state.last_result
-    answer = res.get("result", "")
-    snippet = res.get("snippet", "")
-    sources = res.get("source_documents", [])
+    question = st.session_state.pending_q
+    st.session_state.pending_q = None
 
     st.markdown("""
-    <div class='response-block'>
-        <div class='block-title'>Resposta do Assistente</div>
+    <div class="loading-wrap">
+      <div class="loading-dots">
+        <span></span>
+        <span></span>
+        <span></span>
+      </div>
+
+      <div class="loading-text">
+        Consultando a base de conhecimento...
+      </div>
     </div>
     """, unsafe_allow_html=True)
 
-    st.markdown(answer)
+    try:
+        result = run_rag(
+            question,
+            st.session_state.chat_history
+        )
 
-    if snippet:
-        st.markdown("<br>", unsafe_allow_html=True)
-        st.code(snippet, language="python")
+        st.session_state.chat_history.append(
+            HumanMessage(content=question)
+        )
 
-    if sources:
-        st.markdown("<div class='source-container'><div style='font-size:12px; color:#6e7681; font-family:JetBrains Mono; margin-bottom:8px;'>FONTES CONSULTADAS:</div></div>", unsafe_allow_html=True)
-        
-        # Deduplica as fontes por URL
+        st.session_state.chat_history.append(
+            AIMessage(content=result["answer"])
+        )
+
+        st.session_state.chat_display.append({
+            "question": question,
+            "answer": result["answer"],
+            "snippet": result.get("snippet", ""),
+            "sources": result.get("source_documents", []),
+        })
+
+    except Exception as e:
+        st.error(f"Erro: {e}")
+
+    st.rerun()
+
+# ── HERO ──────────────────────────────────────────────────────────────────────
+if not st.session_state.chat_display:
+
+    st.markdown("""
+    <div class="hero">
+      <span class="gem-star">✶</span>
+
+      <h1>Olá, desenvolvedor</h1>
+
+      <p>
+        Consulte a documentação do Python e MongoDB com IA
+      </p>
+    </div>
+
+    <div class="badges">
+      <span class="badge">
+        <span class="bdot"></span>
+        🐍 Python Docs
+      </span>
+
+      <span class="badge">
+        <span class="bdot"></span>
+        🍃 MongoDB Docs
+      </span>
+    </div>
+    """, unsafe_allow_html=True)
+
+    st.markdown(
+        "<div class='chips-label'>Sugestões</div>",
+        unsafe_allow_html=True
+    )
+
+    sugestoes = [
+        "Como usar map() em Python?",
+        "Insert de documentos no MongoDB",
+        "O que é list comprehension?",
+        "Aggregation pipeline — como funciona?",
+    ]
+
+    col1, col2 = st.columns(2)
+
+    with col1:
+        for i in [0, 1]:
+
+            if st.button(
+                sugestoes[i],
+                key=f"sug_{i}",
+                use_container_width=True
+            ):
+
+                st.session_state.pending_q = sugestoes[i]
+                st.session_state.clear_input = True
+
+                st.rerun()
+
+    with col2:
+        for i in [2, 3]:
+
+            if st.button(
+                sugestoes[i],
+                key=f"sug_{i}",
+                use_container_width=True
+            ):
+
+                st.session_state.pending_q = sugestoes[i]
+                st.session_state.clear_input = True
+
+                st.rerun()
+
+# ── HISTÓRICO ─────────────────────────────────────────────────────────────────
+for idx, turn in enumerate(st.session_state.chat_display):
+
+    if idx > 0:
+        st.markdown(
+            "<hr class='turn-divider'>",
+            unsafe_allow_html=True
+        )
+
+    st.markdown(f"""
+    <div class="turn">
+
+      <div class="user-row">
+        <div class="user-bubble">
+          {turn['question']}
+        </div>
+      </div>
+
+      <div class="ai-row">
+        <div class="ai-av">AI</div>
+        <div class="ai-label">Assistente</div>
+      </div>
+
+    </div>
+    """, unsafe_allow_html=True)
+
+    st.markdown(
+        "<div class='ai-content'>",
+        unsafe_allow_html=True
+    )
+
+    st.markdown(turn["answer"])
+
+    if turn.get("snippet"):
+        st.code(turn["snippet"], language="python")
+
+    if turn.get("sources"):
+
         seen = set()
-        for doc in sources:
+
+        chips = '<div class="src-wrap"><div class="src-label">Fontes</div>'
+
+        for doc in turn["sources"]:
+
             url = doc.metadata.get("source", "#")
+
             if url in seen:
                 continue
+
             seen.add(url)
-            # Identifica a base pela URL
-            if "python.org" in url:
-                base = "Python Docs"
-            elif "mongodb.com" in url:
-                base = "MongoDB Docs"
-            else:
-                base = doc.metadata.get("base", "Documentação")
-            st.markdown(f"""
-            <div class='source-item'>
-                🔹 <strong>{base}</strong> — <a href='{url}' target='_blank'>{url}</a>
-            </div>
-            """, unsafe_allow_html=True)
+
+            icon = "🐍" if "python.org" in url else "🍃"
+
+            p = url.rstrip("/").split("/")
+            label = p[-1] if p[-1] else p[-2]
+
+            chips += (
+                f'<a class="src-chip" '
+                f'href="{url}" '
+                f'target="_blank">'
+                f'{icon} {label}'
+                f'</a>'
+            )
+
+        chips += "</div>"
+
+        st.markdown(
+            chips,
+            unsafe_allow_html=True
+        )
+
+    st.markdown(
+        "</div>",
+        unsafe_allow_html=True
+    )
+
+# ── INPUT ─────────────────────────────────────────────────────────────────────
+if st.session_state.clear_input:
+    st.session_state.query_input = ""
+    st.session_state.clear_input = False
+
+col_input, col_send = st.columns([6, 1])
+
+with col_input:
+
+    pergunta = st.text_input(
+        "query",
+        placeholder="Pergunte sobre Python ou MongoDB...",
+        key="query_input",
+        label_visibility="collapsed",
+    )
+
+with col_send:
+
+    buscar = st.button(
+        "Enviar",
+        type="primary",
+        use_container_width=True
+    )
+
+# ── NOVA CONVERSA ─────────────────────────────────────────────────────────────
+if st.session_state.chat_display:
+
+    if st.button(
+        "↺  Nova conversa",
+        type="secondary",
+        use_container_width=True
+    ):
+
+        st.session_state.chat_history = []
+        st.session_state.chat_display = []
+
+        st.session_state.clear_input = True
+
+        st.rerun()
+
+# ── ENVIA PERGUNTA ────────────────────────────────────────────────────────────
+if buscar and pergunta.strip():
+
+    st.session_state.pending_q = pergunta.strip()
+
+    st.session_state.clear_input = True
+
+    st.rerun()
